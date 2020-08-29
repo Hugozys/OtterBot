@@ -41,7 +41,7 @@ def generate_bot_conf(bot, client, web_base, http_url, ws_url):
                         "enable": True,
                         "postMessageFormat": "string",
                         "reverseHost": web_base,
-                        "reversePort": 80,
+                        "reversePort": 443,
                         "accessToken": "",
                         "reversePath": "/ws",
                         "reverseApiPath": "/api",
