@@ -6,6 +6,7 @@ import re
 import time
 import traceback
 import urllib
+import urllib.parse as urlparse
 import requests
 import base64
 import random
@@ -61,17 +62,27 @@ def delete_message_action(message_id):
     action = {"action": "delete_msg", "params": {"message_id": message_id}, "echo": ""}
     return action
 
+def has_mblog(context):
+    if "pics" in context.keys():
+        pic = context["pics"][0]
+        print(pic)
+        if "mblog" in pic.keys():
+            return (True, pic["mblog"])
+    return (False, dict())
 
 # Weibo share
 def get_weibotile_share(weibotile, mode="json"):
     content_json = json.loads(weibotile.content)
-    mblog = content_json["mblog"]
-    bs = BeautifulSoup(mblog["text"], "lxml")
+    (hasmblog, mblog) = has_mblog(content_json["card_group"][0])
+    print("QQUtils.py: mblog: {}".format(mblog))
+    blogid = dict((urlparse.parse_qsl(urlparse.urlparse(mblog["scheme"],'sinawebo').query)))["mblogid"]
+    print("blogid:{}",blogid)
+    title = (BeautifulSoup(mblog["text"],"html.parser").get_text().replace("\u200b","")[:32] if hasmblog  else "")
     tmp = {
-        "url": content_json["scheme"],
-        "title": bs.get_text().replace("\u200b", "")[:32],
-        "content": "From {}'s Weibo".format(weibotile.owner),
-        "image": mblog["user"]["profile_image_url"],
+        "url": "https://m.weibo.cn/status/{}".format(blogid),
+        "title": title,
+        "content": "From {}\'s Weibo".format(weibotile.owner),
+        "image": (mblog["pic_infos"][mblog["pic_ids"][0]]["thumbnail"]["url"] if hasmblog  else ""),
     }
     res_data = tmp
     if mode == "text":

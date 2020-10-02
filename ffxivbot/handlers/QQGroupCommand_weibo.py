@@ -1,21 +1,31 @@
+
 from .QQEventHandler import QQEventHandler
 from .QQUtils import *
 from ffxivbot.models import *
 import logging
 import json
+import urllib.parse as urlparse
 import random
 from bs4 import BeautifulSoup
 
+def has_mblog(context):
+    if "pics" in context.keys():
+        pic = context["pics"][0]
+        print(pic)
+        if "mblog" in pic.keys():
+            return (True, pic["mblog"])
+    return (False, dict())
 
 def get_weibotile_share(weibotile):
     content_json = json.loads(weibotile.content)
-    mblog = content_json["mblog"]
-    bs = BeautifulSoup(mblog["text"],"lxml")
+    (hasmblog, mblog) = has_mblog(content_json["card_group"][0])
+    blogid = dict((urlparse.parse_qsl(urlparse.urlparse(mblog["scheme"],'sinaweibo').query)))["mblogid"]
+    title = (BeautifulSoup(mblog["text"],"html.parser").get_text().replace("\u200b","")[:32] if hasmblog  else "")
     res_data = {
-        "url":content_json["scheme"],
-        "title":bs.get_text().replace("\u200b","")[:32],
+        "url":"https://m.weibo.cn/status/{}".format(blogid),
+        "title": title,
         "content":"From {}\'s Weibo".format(weibotile.owner),
-        "image":mblog["user"]["profile_image_url"],
+        "image":(mblog["pic_infos"][mblog["pic_ids"][0]]["thumbnail"]["url"] if hasmblog  else ""),
     }
     logging.debug("weibo_share")
     logging.debug(json.dumps(res_data))

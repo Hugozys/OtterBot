@@ -38,6 +38,13 @@ logging.basicConfig(
             )
 
 
+def has_mblog(context):
+    if "pics" in context.keys():
+        pic = context["pics"][0]
+        if "mblog" in pic.keys():
+            return (True, pic["mblog"])
+    return (False, dict())
+        
 def progress(percent, width=50):
     if percent >= 100:
         percent = 100
@@ -53,16 +60,20 @@ def crawl_wb(weibouser, push=False):
     jdata = json.loads(s.text)
     if(jdata["ok"] == 1):
         for tile in jdata["data"]["cards"]:
-            if(len(WeiboTile.objects.filter(itemid=tile.get("itemid", ""))) > 0):
+            hasmblog, blog = has_mblog(tile["card_group"][0])
+            if (not hasmblog):
+                continue
+            print ("has blog: {}, crawl blog: {}".format(hasmblog, blog))
+            if(len(WeiboTile.objects.filter(itemid=blog.get("id", ""))) > 0):
                 # print("crawled {} of {} before, pass".format(tile["itemid"], tile["itemid"]))
                 continue
-            t = WeiboTile(itemid=tile.get("itemid", ""))
+            t = WeiboTile(itemid=blog.get("id", ""))
             t.owner = weibouser
             t.content = json.dumps(tile)
             t.crawled_time = int(time.time())
             if(tile.get("itemid", "") == ""):
                 logging.info("pass a tile of {} cuz empty itemid".format(t.owner))
-                # logging.info(json.dumps(tile))
+                #logging.info(json.dumps(tile))
                 continue
             channel_layer = get_channel_layer()
 
@@ -76,9 +87,11 @@ def crawl_wb(weibouser, push=False):
                     if int(group.group_id) not in group_id_list: continue
                     try:
                         msg = get_weibotile_share(t, mode="text")
+                        print ("bot.shared_banned: {}".format(bot.share_banned))
                         if bot.share_banned:
                             content_json = json.loads(t.content)
-                            mblog = content_json["mblog"]
+                            
+                            hasblog, mblog = has_mblog(content_json["card_group"][0])
                             bs = BeautifulSoup(mblog["text"],"html.parser")
                             if "original_pic" in mblog.keys():
                                 text = "{}\n{}\n{}".format(
@@ -107,7 +120,7 @@ def crawl_wb(weibouser, push=False):
                                     content_json["scheme"]
                                 )
                         logging.info("Pushing {} to group: {}".format(t, group))
-                        # print("msg: {}".format(msg))
+                        print("msg: {}".format(msg))
                         if push:
                             t.pushed_group.add(group)
                             jdata = {
